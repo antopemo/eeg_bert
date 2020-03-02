@@ -1,5 +1,6 @@
 .ipynb_checkpoints
 __pycache__
-Cosas_encontradas
 logs
 checkpoints
+.log
+/.log/eegs/*
