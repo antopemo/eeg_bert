@@ -10,7 +10,7 @@ import numpy as np
 
 # Directorio base donde se encuentra el dataset
 base_path = "C:\\Users\\Ceiec01\\OneDrive - UFV\\datasets\\EEGs_Pre_Post_LD"
-version = "v1.0.0"
+version = "v2.0.0"
 
 random.seed(42)
 
@@ -44,12 +44,12 @@ def refactor_data():
         print(file)
         f = open(file, "r")
         times = np.asarray([float(i) for i in f.readline().split(sep="\t")[1:-1]])
-        # np.save(file+'_timestamp', times)
+        np.save(file+'_timestamp', times)
         eeg = np.empty((64, len(times)))
         for i in range(64):
             line = f.readline().split(sep="\t")
             eeg[i] = np.asarray([float(i) for i in line[1:-1]])
-        # np.save(file+'_eeg', eeg)
+        np.save(file+'_eeg', eeg)
 
 
 def gui_temp(gui=False):
@@ -188,6 +188,7 @@ def load_and_slice(array_path, tag, step=16, width=64, output_shape=None, transp
             if transpose:
                 element = element.T
             if output_shape is not None:
+                #print(element.shape)
                 element = element.reshape(output_shape)
             yield element, tag[i]
 
@@ -202,9 +203,13 @@ def sliding_window(eeg, step=16, width=64):
     """
     i = 0
     while i + step + width < eeg.shape[1]:
+
+
+        chunk = eeg[:, i + step:i + step + width]
         i += 1
-        yield eeg[:, i + step:i + step + width]
+        #print(f'{i * step}: {eeg.shape} - {chunk.shape} - from {i*step} to {i*step+width}')
+        yield chunk
 
 
 if __name__ == "__main__":
-    dataset = generate_dataset()
+    refactor_data()

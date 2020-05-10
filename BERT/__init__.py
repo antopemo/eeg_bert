@@ -9,6 +9,7 @@ from .version import __version__
 from .attention import AttentionLayer
 from .layer import Layer
 from .model import BertModelLayer
+from .splitter_layer import SplitterLayer
 
 from .loader import StockBertConfig, load_stock_weights, params_from_pretrained_ckpt
 from .loader import load_stock_weights as load_bert_weights
