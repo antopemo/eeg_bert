@@ -31,7 +31,7 @@ def test_model(model_path, run, patient, channels, out_shape):
     # out_shape = [window_width, 64]
     model = load_model(model_path)
     runs = ['test', 'train', 'val', 'full']
-    patients = [ '', 'pre', 'post']
+    patients = ['', 'pre', 'post']
 
     prepro = Preprocessor(batch_size,
                           window_width,
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     model_path = "C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-HigherDropout-Final"
     for run in range(3):
         test_model(model_path, run, 1, channels,out_shape)
-    test_model(model_path,3,2, channels, out_shape)
+    test_model(model_path, 3,  2, channels, out_shape)
     channels = []
     out_shape = [window_width, 64, 1]
     model_path = "C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-HigherDropout-64"

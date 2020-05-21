@@ -6,3 +6,4 @@ checkpoints
 /.log/eegs/*
 *.h5
 transformers
+old_*
