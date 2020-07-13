@@ -3,7 +3,8 @@ def plot_confusion_matrix(cm,
                           title='Confusion matrix',
                           cmap=None,
                           normalize=True,
-                          save=None):
+                          save=None,
+                          show=False):
     """
     given a sklearn confusion matrix (cm), make a nice plot
 
@@ -77,4 +78,8 @@ def plot_confusion_matrix(cm,
     plt.xlabel('Predicted label\naccuracy={:0.4f}; misclass={:0.4f}'.format(accuracy, misclass))
     if save:
         plt.savefig(save)
-    plt.show()
+    if show:
+        plt.show()
+    else:
+        plt.close()
+

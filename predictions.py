@@ -27,31 +27,67 @@ if gpus:
         print(e)
 
 
-def test_model(model_path, run, patient, channels, out_shape):
+def test_model(model_path, run, patient, prueba=1, combination = 'mean'):
+    """
+    Función que prueba el modelo especificado.
+    Esta funcion genera los reportes de clasificacion y matrices de confusion tanto para
+    los eegs completos como para los fragmentos. Ademas si el modelo es por zonas tambien genera
+    los valores para estas.
+
+    :param model_path: ruta del modelo (La carpeta donde se almacena el modelo)
+    :param run: número del 0 al 4: 'test', 'train', 'val', 'full', 'test_pre_post'
+    :param patient: número del 0 al 2: '', 'pre', 'post'
+    :param prueba: prueba del dataset:
+        -1: "Both",
+        0: "FTD",
+        1: "FTI",
+        2: "Resting"
+    :param combination: 'mean' o 'majority_voting' para la combinación de los resultados en el
+        modelo de zonas
+    :return: nada
+    """
     # out_shape = [window_width, 64]
     model = load_model(model_path)
-    runs = ['test', 'train', 'val', 'full']
+    runs = ['test', 'train', 'val', 'full', 'test_pre_post']
     patients = ['', 'pre', 'post']
+    pruebas = {-1: "Both",
+               0: "FTD",
+               1: "FTI",
+               2: "Resting"}
+    base_path = f'{runs[run]}_{patients[patient]}_{pruebas[prueba]}'
+    if 'Zone' in model_path:
+        base_path = f'{base_path}_{combination}'
+    print(f'{base_path}')
+
+    channels = []
+    if model.input_shape[2] == 25:
+        channels = [9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 29, 30, 31, 32, 33, 39, 40, 41, 42, 43, 49, 50, 51, 52, 53]
+    out_shape = list(model.input_shape[1:])
+
+    test_post = False
+    if run == 4:
+        test_post = True
 
     prepro = Preprocessor(batch_size,
-                          window_width,
-                          window_steps,
-                          prueba=0,
+                          model.input_shape[1],
+                          64,
+                          prueba=prueba,
                           limpio=0,
                           paciente=patient,
                           channels=channels,
                           transpose=True,
-                          output_shape=out_shape)
+                          output_shape=out_shape,
+                          test_post=test_post)
 
     try:
-        os.mkdir(model_path + f'\\{runs[run]}_{patients[patient]}' )
-        os.mkdir(model_path + f'\\{runs[run]}_{patients[patient]}\\chunks')
-        os.mkdir(model_path + f'\\{runs[run]}_{patients[patient]}\\full_eeg')
+        os.mkdir(f'{model_path}\\{base_path}')
+        os.mkdir(f'{model_path}\\{base_path}\\chunks')
+        os.mkdir(f'{model_path}\\{base_path}\\full_eeg')
 
 
     except Exception:
         pass
-    if run == 0:
+    if run == 0 or run == 4:
         data = prepro.test_set
     if run == 1:
         data = prepro.train_set
@@ -59,7 +95,7 @@ def test_model(model_path, run, patient, channels, out_shape):
         data = prepro.val_set
     if run == 3:
         data = prepro.dataset
-
+    print("Full EEGs")
     y_pred = []
     y_pred_zones = [[] for _ in range(8)]
     for x_data, y_data in zip(data[0], data[1]):
@@ -70,17 +106,23 @@ def test_model(model_path, run, patient, channels, out_shape):
             for i, zone in enumerate(np.swapaxes(zone_pred, 0, 1)):
                 y_pred_zones[i].append(np.argmax(np.asarray(np.mean(zone, axis=0))))
                 try:
-                    os.mkdir(model_path + f'\\{runs[run]}_{patients[patient]}\\chunks\\zones')
-                    os.mkdir(model_path + f'\\{runs[run]}_{patients[patient]}\\full_eeg\\zones')
+                    os.mkdir(f'{model_path}\\{base_path}\\chunks\\zones')
+                    os.mkdir(f'{model_path}\\{base_path}\\full_eeg\\zones')
                 except Exception:
                     pass
-        y_pred.append(np.mean(pred, axis=0))
-    # FULL EEGS FIRST
-    y_pred = np.argmax(np.asarray(y_pred), axis=1)
+            if combination == 'majority_voting':
+                max_pred_zones = np.array([np.bincount(x) for x in y_pred_zones]).argmax(axis=1)
+                max_pred_total = np.bincount(max_pred_zones).argmax()
+                y_pred.append(max_pred_total)
+        else:
+            y_pred.append(np.mean(pred, axis=0))
+            # FULL EEGS FIRST
+            y_pred = np.argmax(np.asarray(y_pred), axis=1)
 
     cf_matrix = confusion_matrix(data[1], y_pred)
 
-    with open(model_path + f'\\{runs[run]}_{patients[patient]}/full_eeg/classification_report.txt', 'w') as f:
+    with open(f'{model_path}\\{base_path}/full_eeg/classification_report.txt',
+              'w') as f:
         print(classification_report(data[1], y_pred, labels=[0, 1], target_names=["No Parkinson", "Parkinson"]), file=f)
     print(cf_matrix)
 
@@ -88,7 +130,7 @@ def test_model(model_path, run, patient, channels, out_shape):
                           normalize=False,
                           target_names=["No Parkinson", "Parkinson"],
                           title="Matriz de confusión",
-                          save=model_path + f'\\{runs[run]}_{patients[patient]}\\full_eeg\\test_eeg.png')
+                          save=f'{model_path}\\{base_path}\\full_eeg\\test_eeg.png')
 
     if y_pred_zones[0]:
         for i, y_pred in enumerate(y_pred_zones):
@@ -98,7 +140,7 @@ def test_model(model_path, run, patient, channels, out_shape):
                                   normalize=False,
                                   target_names=["No Parkinson", "Parkinson"],
                                   title="Matriz de confusión",
-                                  save=model_path + f'\\{runs[run]}_{patients[patient]}\\full_eeg\\zones\\test_confussion_zone_{i + 1}_matrix.png')
+                                  save=f'{model_path}\\{base_path}\\full_eeg\\zones\\test_confussion_zone_{i + 1}_matrix.png')
 
     # CHUNKS NOW
     full, train, test, val = prepro.classification_generator_dataset()
@@ -118,6 +160,7 @@ def test_model(model_path, run, patient, channels, out_shape):
 
     y_data = list(y_data)
 
+    print("Chunks")
 
     y_pred = model.predict(data_dataset, verbose=1)
     y_pred_zones = []
@@ -128,7 +171,8 @@ def test_model(model_path, run, patient, channels, out_shape):
 
     cf_matrix = confusion_matrix(y_data, y_pred)
 
-    with open(model_path + f'\\{runs[run]}_{patients[patient]}\\chunks/classification_report.txt', 'w') as f:
+    with open(f'{model_path}\\{base_path}\\chunks/classification_report.txt',
+              'w') as f:
         print(classification_report(y_data, y_pred, labels=[0, 1], target_names=["No Parkinson", "Parkinson"]), file=f)
     print(cf_matrix)
 
@@ -136,7 +180,7 @@ def test_model(model_path, run, patient, channels, out_shape):
                           normalize=False,
                           target_names=["No Parkinson", "Parkinson"],
                           title="Matriz de confusión",
-                          save=model_path + f'\\{runs[run]}_{patients[patient]}\\chunks\\test_eeg.png')
+                          save=f'{model_path}\\{base_path}\\chunks\\test_eeg.png')
     if y_pred_zones != []:
         for i, y_pred in enumerate(y_pred_zones):
             cf_matrix = confusion_matrix(y_data, y_pred)
@@ -145,24 +189,17 @@ def test_model(model_path, run, patient, channels, out_shape):
                                   normalize=False,
                                   target_names=["No Parkinson", "Parkinson"],
                                   title="Matriz de confusión",
-                                  save=model_path + f'\\{runs[run]}_{patients[patient]}\\chunks\\zones\\test_confussion_zone_{i + 1}_matrix.png')
+                                  save=f'{model_path}\\{base_path}\\chunks\\zones\\test_confussion_zone_{i + 1}_matrix.png')
+
 
 if __name__ == "__main__":
-    channels = [9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 29, 30, 31, 32, 33, 39, 40, 41, 42, 43, 49, 50, 51, 52, 53]
-    out_shape = [window_width, len(channels), 1]
-    model_path = "C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-HigherDropout-Final"
-    for run in range(3):
-        test_model(model_path, run, 1, channels,out_shape)
-    test_model(model_path, 3,  2, channels, out_shape)
-    channels = []
-    out_shape = [window_width, 64, 1]
-    model_path = "C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-HigherDropout-64"
-    for run in range(3):
-        test_model(model_path, run, 1, channels, out_shape)
-    test_model(model_path, 3, 2, channels, out_shape)
-
-    out_shape = [window_width, 64]
-    model_path = "C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-Zones-Final"
-    for run in range(3):
-        test_model(model_path, run, 1, channels, out_shape)
-    test_model(model_path, 3, 2, channels, out_shape)
+    model_paths = [#"C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-ControlesPre-CanalesReducidos",
+                   #"C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-HigherDropout-64",
+                   "C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-Zones-Final"
+                   ]
+    for model_path in model_paths:
+        for run in range(3):
+            print(f'{model_path} - {run}')
+            test_model(model_path, run, 1)
+        print(f'{model_path} - post')
+        test_model(model_path, 3, 2)

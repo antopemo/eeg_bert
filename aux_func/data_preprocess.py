@@ -19,7 +19,8 @@ class Preprocessor:
                  control=0,
                  shuffle=True,
                  transpose=False,
-                 output_shape=None):
+                 output_shape=None,
+                 test_post=False):
         """
         This function serves as a configurator for a certain preprocessor,
         allowing for multiple configurations to be made
@@ -37,6 +38,7 @@ class Preprocessor:
         :param shuffle: Whether or not to shuffle the dataset
         :param transpose: If True, the result will be time x channel, else channel x time
         :param output_shape: shape of the output
+        :param test_post: Returns the train test as train plus post
         """
         # Zona de declaración de constantes
         self.CHANNELS = 64
@@ -50,6 +52,7 @@ class Preprocessor:
         self.train_set = None
         self.test_set = None
         self.val_set = None
+        self.test_post = test_post
 
         if output_shape is None:
             self.output_shape = [self.CHANNELS, self.WINDOW_WIDTH, 1]
@@ -73,10 +76,15 @@ class Preprocessor:
 
         # Cargamos el dataset. Esto devuelve un diccionario que podemos emplear para seleccionar qué tipos de datos
         # queremos usar. Quitamos las opciones de que cojan datasets mixtos.
-        dataset = generate_dataset([[-1], [-1]])
+        dataset = generate_dataset()
+        if paciente != -1:
+            self.patient = dataset[limpios[limpio]][pruebas[prueba]][pacient[paciente]]
+        else:
+            self.patient = dataset[limpios[limpio]][pruebas[prueba]][pacient[1]] +\
+                           dataset[limpios[limpio]][pruebas[prueba]][pacient[2]]
 
-        self.patient = dataset[limpios[limpio]][pruebas[prueba]][pacient[paciente]]
         self.controles = dataset[limpios[limpio]][pruebas[prueba]][pacient[control]]
+        self.post = dataset[limpios[limpio]][pruebas[prueba]][pacient[2]]
 
         self._split_dataset(test_size, val_size)
 
@@ -132,6 +140,10 @@ class Preprocessor:
         self.dataset = (x, y)
         self.train_set = (x_train, y_train)
         self.test_set = (x_test, y_test)
+        if self.test_post:
+            x_post = self.post
+            y_post = [1]*len(x_post)
+            self.test_set = (x_test + x_post, y_test + y_post)
         self.val_set = (x_val, y_val)
 
         return self.dataset, self.train_set, self.test_set, self.val_set

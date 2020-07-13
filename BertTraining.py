@@ -23,9 +23,9 @@ if gpus:
 
 batch_size = 16
 window_width = 256
-window_steps = 64
+window_steps = 1
 channels = []
-channels = [9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 29, 30, 31, 32, 33, 39, 40, 41, 42, 43, 49, 50, 51, 52, 53]
+#channels = [9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 29, 30, 31, 32, 33, 39, 40, 41, 42, 43, 49, 50, 51, 52, 53]
 
 # Define the checkpoints folder
 checkpoint_path = "./checkpoints/train"
@@ -52,7 +52,7 @@ if __name__ == "__main__":
                                                                      ).classification_tensorflow_dataset()
     if len(channels) == 25:
         model = Bert_25_channels.create_model(tuple(out_shape), adapter_size=None)
-    if len(channels) == 64:
+    if len(channels) == 0:
         model = Bert_64_channels.create_model(tuple(out_shape), adapter_size=None)
 
     model.compile(optimizer=optimizer,
@@ -60,7 +60,7 @@ if __name__ == "__main__":
                   metrics=[train_accuracy, 'acc'])
 
     model_path = os.path.normpath(
-        "./checkpoints/BERT-HigherDropout-64c" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+        "./checkpoints/BERT-HigherDropout-64-16-cabezas" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     os.mkdir(model_path)
     os.mkdir(model_path + '\\training_weights')
 

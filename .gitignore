@@ -6,4 +6,6 @@ checkpoints
 /.log/eegs/*
 *.h5
 transformers
-old_*
+__old/*
+testeo/*
+*.csv

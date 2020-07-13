@@ -44,12 +44,12 @@ def refactor_data():
         print(file)
         f = open(file, "r")
         times = np.asarray([float(i) for i in f.readline().split(sep="\t")[1:-1]])
-        np.save(file+'_timestamp', times)
+        np.save(file + '_timestamp', times)
         eeg = np.empty((64, len(times)))
         for i in range(64):
             line = f.readline().split(sep="\t")
             eeg[i] = np.asarray([float(i) for i in line[1:-1]])
-        np.save(file+'_eeg', eeg)
+        np.save(file + '_eeg', eeg)
 
 
 def gui_temp(gui=False):
@@ -166,6 +166,12 @@ def generate_dataset(exclude=None):
     return temp_dataset
 
 
+def pad_up_to(t, max_in_dims, constant_values):
+    s = np.shape(t)
+    paddings = [[0, m - s[i]] for (i, m) in enumerate(max_in_dims)]
+    return np.pad(t, paddings, 'constant', constant_values=constant_values)
+
+
 def load_and_slice(array_path, tag, step=16, width=64, output_shape=None, transpose=False, channels=None):
     """
     Generator to get data out of paths already sliced.
@@ -188,8 +194,15 @@ def load_and_slice(array_path, tag, step=16, width=64, output_shape=None, transp
             if transpose:
                 element = element.T
             if output_shape is not None:
-                #print(element.shape)
-                element = element.reshape(output_shape)
+                # print(element.shape)
+                shape_a, shape_b = 1, 1
+                for a, b in zip(output_shape, element.shape):
+                    shape_a *= a
+                    shape_b *= b
+                if shape_a == shape_b:
+                    element = element.reshape(output_shape)
+                else:
+                    element = pad_up_to(element, output_shape, 0)
             yield element, tag[i]
 
 
@@ -203,11 +216,10 @@ def sliding_window(eeg, step=16, width=64):
     """
     i = 0
     while i + step + width < eeg.shape[1]:
-
-
         chunk = eeg[:, i + step:i + step + width]
         i += 1
-        #print(f'{i * step}: {eeg.shape} - {chunk.shape} - from {i*step} to {i*step+width}')
+        # print(f'{i * step}: {eeg.shape} - {chunk.shape} - from {i*step} to {i*step+width}')
+
         yield chunk
 
 

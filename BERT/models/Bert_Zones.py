@@ -55,6 +55,8 @@ def create_model(input_shape, adapter_size=64):
     # adapter_size = 64  # see - arXiv:1902.00751
 
     # create the bert layer
+    if np.ndim(input_shape) > 2:
+        input_shape = np.reshape(input_shape, input_shape[:-1])
     bert = []
     for i, bert_config in enumerate(bert_config_zone):
         bc = StockBertConfig.from_json_string(bert_config)
@@ -92,104 +94,3 @@ def create_model(input_shape, adapter_size=64):
     model.summary()
 
     return model, zone_model
-
-
-def train_test():
-    prepro = Preprocessor(batch_size,
-                          window_width,
-                          window_steps,
-                          prueba=0,
-                          limpio=0,
-                          paciente=1,
-                          channels=channels,
-                          transpose=True,
-                          output_shape=out_shape
-                          )
-    train, test, val = prepro.classification_generator_dataset()
-
-    _, y_train = zip(*list(train))
-    _, y_test = zip(*list(test))
-    _, y_val = zip(*list(val))
-
-    y_train = list(y_train)
-    y_test = list(y_test)
-    y_val = list(y_val)
-
-    dataset, train_dataset, test_dataset, val_dataset = prepro.classification_tensorflow_dataset()
-
-    model = create_model(tuple(out_shape), adapter_size=None)
-    model.compile(optimizer=optimizer,
-                  loss=[train_loss, None],
-                  metrics=[train_accuracy, 'acc'])
-
-    model_path = os.path.normpath(
-        "./checkpoints/BERT-Zones" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-    os.mkdir(model_path)
-    os.mkdir(model_path + '\\training_weights')
-
-    checkpoint_path = os.path.join(model_path, "training_weights\\weights.{epoch:02d}-{val_loss:.2f}.hdf5")
-    checkpoint_dir = os.path.dirname(checkpoint_path)
-
-    with open(model_path + '\\model_architecture.json', 'w') as f:
-        json.dump(model.to_json(), f)
-
-    # Create a callback that saves the model's weights
-    cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
-                                                     save_freq='epoch',
-                                                     verbose=1)
-
-    log_dir = ".log\\eegs\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir,
-                                                       histogram_freq=1,
-                                                       write_graph=True,
-                                                       write_images=True,
-                                                       update_freq='epoch',
-                                                       profile_batch=2)
-
-    total_epoch_count = 10
-    model.fit(x=train_dataset,
-              validation_data=val_dataset,
-              shuffle=True,
-              epochs=total_epoch_count,
-              callbacks=[keras.callbacks.EarlyStopping(monitor="SparseCatAc", patience=10, restore_best_weights=True),
-                         tensorboard_callback, cp_callback])
-
-    os.mkdir(model_path + '\\test')
-    os.mkdir(model_path + '\\test\\chunks')
-    os.mkdir(model_path + '\\test\\full_eeg')
-
-    test = prepro.test_set
-    y_pred = []
-    y_pred_zones = [[] for i in range(8)]
-    for x_test, y_test in zip(test[0], test[1]):
-        test_dataset = prepro.tf_from_generator([x_test], [y_test])
-        pred = model.predict(test_dataset, verbose=1)
-        y_pred.append(np.mean(pred[0], axis=0))
-        for i, zone in enumerate(np.swapaxes(pred[1], 0, 1)):
-            y_pred_zones[i].append(np.mean(zone, axis=0))
-    # FULL EEGS FIRST
-    y_pred = np.argmax(np.asarray(y_pred), axis=1)
-
-    cf_matrix = confusion_matrix(test[1], y_pred)
-
-    with open(model_path + '/test/full_eeg/classification_report.txt', 'w') as f:
-        print(classification_report(test[1], y_pred, target_names=["No Parkinson", "Parkinson"]), file=f)
-    print(cf_matrix)
-
-    plot_confusion_matrix(cm=cf_matrix,
-                          normalize=False,
-                          target_names=["No Parkinson", "Parkinson"],
-                          title="Matriz de confusión",
-                          save=model_path + f'\\test\\full_eeg\\test_eeg.png')
-
-    # CHUNKS NOW
-    y_pred = model.predict(test_dataset, verbose=1)
-    y_pred = np.argmax(y_pred, axis=1)
-
-    cf_matrix = confusion_matrix(y_test, y_pred)
-    print(cf_matrix)
-    plot_confusion_matrix(cm=cf_matrix,
-                          normalize=False,
-                          target_names=["No Parkinson", "Parkinson"],
-                          title="Matriz de confusión",
-                          save=model_path + f'\\test\\chunks\\test_confussion_matrix.png')
