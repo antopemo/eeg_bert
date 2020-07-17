@@ -59,7 +59,14 @@ datos_entrenamiento = {
     2: 'Both'
 }
 
-total_epoch_count = 10
+pacientes = {
+    -1:'pre-post',
+    0:'control',
+    1:'pre',
+    2:'post'
+}
+
+total_epoch_count = 5
 learning_rate = 2e-5
 optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 train_loss = keras.losses.SparseCategoricalCrossentropy(from_logits=True, name='loss')
@@ -68,7 +75,7 @@ train_accuracy = keras.metrics.SparseCategoricalAccuracy(name="SparseCatAc")
 
 def train_model(modelo, datos, batch_size=16, window_width=256, window_steps=1, patient=1):
     model_path = os.path.normpath(
-        f'./checkpoints/{modelos[modelo]}_{datos_entrenamiento[datos]}_'
+        f'./checkpoints/{modelos[modelo]}_{datos_entrenamiento[datos]}_{pacientes[patient]}_'
         f'{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
 
     out_shape = [window_width, 64]
