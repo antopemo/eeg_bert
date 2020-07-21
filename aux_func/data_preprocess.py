@@ -18,7 +18,7 @@ class Preprocessor:
                  val_size=0.2,
                  control=0,
                  shuffle=True,
-                 transpose=False,
+                 transpose=True,
                  output_shape=None,
                  test_post=False):
         """

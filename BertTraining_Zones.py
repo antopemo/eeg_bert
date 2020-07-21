@@ -26,14 +26,15 @@ window_width = 256
 window_steps = 64
 channels = []
 
+
 class Zone_Trainer:
-    def __init__(self, batch_size, window_width, window_steps, channels, out_shape):
+    def __init__(self, batch_size, window_width, window_steps, channels, out_shape, prueba, patient):
         self.dataset, self.train_dataset, self.test_dataset, self.val_dataset = Preprocessor(batch_size,
                                                                                              window_width,
                                                                                              window_steps,
-                                                                                             prueba=0,
+                                                                                             prueba=prueba,
                                                                                              limpio=0,
-                                                                                             paciente=1,
+                                                                                             paciente=patient,
                                                                                              channels=channels,
                                                                                              transpose=True,
                                                                                              output_shape=out_shape
@@ -106,18 +107,3 @@ class Zone_Trainer:
                      )
         self.model.save_weights(os.path.join(self.model_path, "training_weights\\weights_9.full.hdf5"))
 
-
-if __name__ == "__main__":
-
-    # channels = [9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 29, 30, 31, 32, 33, 39, 40, 41, 42, 43, 49, 50, 51, 52, 53]
-
-    learning_rate = 2e-5
-    optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
-    train_loss = keras.losses.SparseCategoricalCrossentropy(from_logits=True, name='loss')
-    train_accuracy = keras.metrics.SparseCategoricalAccuracy(name="SparseCatAc")
-
-    out_shape = [window_width, len(channels)] if channels else [window_width, 64]
-    epoch_count = 10
-
-    Zone_Trainer(batch_size, window_width, window_steps, channels, out_shape)\
-        .train_individually(epoch_count, optimizer, train_loss, train_accuracy)

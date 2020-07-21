@@ -14,7 +14,7 @@ bert_config = f'{{ \
     "initializer_range": 0.02,\
     "intermediate_size": 1536,\
     "max_position_embeddings": 5120,\
-    "num_attention_heads": 4,\
+    "num_attention_heads": 16,\
     "num_hidden_layers": 6,\
     "type_vocab_size": 2,\
     "vocab_size": 30522\

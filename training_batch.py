@@ -82,7 +82,7 @@ def train_model(modelo, datos, batch_size=16, window_width=256, window_steps=1, 
     prueba = -1 if datos == 2 else datos
     if modelo == 2:
         channels = []
-        Zone_Trainer(batch_size, window_width, window_steps, channels, out_shape) \
+        Zone_Trainer(batch_size, window_width, window_steps, channels, out_shape, prueba, patient) \
             .train_individually(total_epoch_count, optimizer, train_loss, train_accuracy)
     else:
         channels = [9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 29, 30, 31, 32, 33, 39, 40, 41, 42, 43, 49, 50, 51, 52,

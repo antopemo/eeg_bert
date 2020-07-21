@@ -56,8 +56,10 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
                1: "FTI",
                2: "Resting"}
     base_path = f'{conjuntos[conjunto]}_{patients[patient]}_{pruebas[prueba]}'
+    zones = False
     if 'Zone' in model_path:
         base_path = f'{base_path}_{combination}'
+        zones = True
     print(f'{base_path}')
 
     channels = []
@@ -78,7 +80,8 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
                           channels=channels,
                           transpose=True,
                           output_shape=out_shape,
-                          test_post=test_post)
+                          test_post=test_post,
+                          shuffle=False)
 
     try:
         os.mkdir(f'{model_path}\\{base_path}')
@@ -103,7 +106,7 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
         for x_data, y_data in zip(data[0], data[1]):
             test_dataset = prepro.tf_from_generator([x_data], [y_data])
             pred = model.predict(test_dataset, verbose=1)
-            if len(pred) == 2:
+            if zones:
                 pred, zone_pred = pred
                 for i, zone in enumerate(np.swapaxes(zone_pred, 0, 1)):
                     y_pred_zones[i].append(np.argmax(np.asarray(np.mean(zone, axis=0))))
@@ -114,13 +117,13 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
                         pass
                 if combination == 'majority_voting':
                     max_pred_total = np.bincount(np.array(y_pred_zones)[:, -1]).argmax()
-                    y_pred.append(max_pred_total)
                 else:
-
+                    max_pred_total = np.mean(np.array(y_pred_zones), axis=1).argmax()
+                y_pred.append(max_pred_total)
             else:
                 y_pred.append(np.mean(pred, axis=0))
                 # FULL EEGS FIRST
-        if len(pred) == 1 or combination == 'mean':
+        if not zones or combination == 'mean':
             y_pred = np.argmax(np.asarray(y_pred), axis=1)
 
         cf_matrix = confusion_matrix(data[1], y_pred)
