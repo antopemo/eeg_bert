@@ -15,7 +15,7 @@ import argparse
 import glob
 import sys
 
-from predictions import test_model
+from main_func.predictions import test_model
 
 
 def main(arguments):

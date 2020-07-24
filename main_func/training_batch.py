@@ -21,13 +21,11 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import json as json_app
 
-from BERT.models import Bert_25_channels, Bert_64_channels, Bert_Zones
-from BertTraining_Zones import Zone_Trainer
+from BERT.models import Bert_64_channels
+from main_func.BertTraining_Zones import Zone_Trainer
 from aux_func.data_preprocess import Preprocessor
 import tensorflow as tf
 from tensorflow import keras
-
-import datetime
 
 # print(tf.version)
 from config import bert_configs

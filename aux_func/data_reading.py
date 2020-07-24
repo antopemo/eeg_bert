@@ -25,6 +25,16 @@ limpios_regex = {-1: "*",
            0: "EEGs_brutos",
            1: "EEGs_limpieza_CSIC"}
 
+def prepare_file(file_path):
+    f = open(file_path, "r")
+    times = np.asarray([float(i) for i in f.readline().split(sep="\t")[1:-1]])
+    np.save(file_path + '_timestamp', times)
+    eeg = np.empty((64, len(times)))
+    for i in range(64):
+        line = f.readline().split(sep="\t")
+        eeg[i] = np.asarray([float(i) for i in line[1:-1]])
+    np.save(file_path + '_eeg', eeg)
+    return file_path + '_eeg.npy'
 
 def refactor_data(path=None):
     """
@@ -46,14 +56,7 @@ def refactor_data(path=None):
 
     for file in tqdm(control_files + no_control_files):
         print(file)
-        f = open(file, "r")
-        times = np.asarray([float(i) for i in f.readline().split(sep="\t")[1:-1]])
-        np.save(file + '_timestamp', times)
-        eeg = np.empty((64, len(times)))
-        for i in range(64):
-            line = f.readline().split(sep="\t")
-            eeg[i] = np.asarray([float(i) for i in line[1:-1]])
-        np.save(file + '_eeg', eeg)
+        prepare_file(file)
 
 
 def load_data(limpio=-1, prueba=-1, path=None):

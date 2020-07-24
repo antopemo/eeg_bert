@@ -1,14 +1,7 @@
-import glob
-import json
-
 from sklearn.metrics import confusion_matrix, classification_report
-from tensorflow import keras
 
-from BertTraining import batch_size, window_width, window_steps, out_shape
+from main_func.BertTraining import batch_size
 from aux_func.data_preprocess import Preprocessor
-from matplotlib import pyplot as plt
-import seaborn as sn
-from BERT import BertModelLayer, SplitterLayer
 import numpy as np
 from aux_func.confussion_matrix import plot_confusion_matrix
 import tensorflow as tf
