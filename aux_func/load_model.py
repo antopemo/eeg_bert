@@ -18,7 +18,7 @@ if gpus:
 
 def load_model(model_path):
     weights = glob.glob(model_path + "/training_weights/weights*.hdf5")
-    with open(model_path + "\\model_architecture.json", 'r') as f:
+    with open(model_path + "/model_architecture.json", 'r') as f:
         model_arch = json.load(f)
     model = tf.keras.models.model_from_json(model_arch, custom_objects={'BertModelLayer': BertModelLayer,
                                                                         'SplitterLayer': SplitterLayer})

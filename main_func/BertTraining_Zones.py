@@ -44,11 +44,11 @@ class Zone_Trainer:
         self.model_name = "BERT-Zones-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.model_path = os.path.normpath("./checkpoints/" + self.model_name)
         os.mkdir(self.model_path)
-        os.mkdir(self.model_path + '\\training_weights')
+        os.mkdir(self.model_path + '/training_weights')
 
-        checkpoint_path = os.path.join(self.model_path, "training_weights\\weights.{epoch:02d}-{val_loss:.2f}.hdf5")
+        checkpoint_path = os.path.join(self.model_path, "training_weights/weights.{epoch:02d}-{val_loss:.2f}.hdf5")
 
-        with open(self.model_path + '\\model_architecture.json', 'w') as f:
+        with open(self.model_path + '/model_architecture.json', 'w') as f:
             json.dump(self.model.to_json(), f)
 
         # Create a callback that saves the model's weights
@@ -56,7 +56,7 @@ class Zone_Trainer:
                                                               save_freq='epoch',
                                                               verbose=1)
 
-        log_dir = ".log\\eegs\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        log_dir = ".log/eegs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir,
                                                                 histogram_freq=1,
                                                                 write_graph=True,
@@ -80,13 +80,13 @@ class Zone_Trainer:
     def train_individually(self, total_epoch_count, optimizer, train_loss, train_accuracy):
         for i, zone in enumerate(self.zone_model):
             checkpoint_path = os.path.join(self.model_path,
-                                           "training_weights\\weights_" + str(i+1) + ".{epoch:02d}-{val_loss:.2f}.hdf5")
+                                           "training_weights/weights_" + str(i+1) + ".{epoch:02d}-{val_loss:.2f}.hdf5")
 
             # Create a callback that saves the model's weights
             cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                              save_freq='epoch',
                                                              verbose=1)
-            log_dir = ".log\\eegs\\zone_" + str(i+1) + "\\" + self.model_name
+            log_dir = ".log/eegs/zone_" + str(i+1) + "/" + self.model_name
             self.tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir,
                                                                     histogram_freq=1,
                                                                     write_graph=True,
@@ -105,5 +105,5 @@ class Zone_Trainer:
                          keras.callbacks.EarlyStopping(monitor="SparseCatAc", patience=10, restore_best_weights=True),
                          cp_callback, self.tensorboard_callback]
                      )
-        self.model.save_weights(os.path.join(self.model_path, "training_weights\\weights_9.full.hdf5"))
+        self.model.save_weights(os.path.join(self.model_path, "training_weights/weights_9.full.hdf5"))
 

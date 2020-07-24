@@ -22,6 +22,7 @@ import datetime
 import numpy as np
 
 from aux_func.data_preprocess import Preprocessor
+from aux_func.data_reading import prepare_file
 from aux_func.load_model import load_model
 
 
@@ -52,16 +53,7 @@ def test_model(model_path, file_path):
     return np.asarray((np.mean(pred, axis=0)))
 
 
-def prepare_file(file_path):
-    f = open(file_path, "r")
-    times = np.asarray([float(i) for i in f.readline().split(sep="\t")[1:-1]])
-    np.save(file_path + '_timestamp', times)
-    eeg = np.empty((64, len(times)))
-    for i in range(64):
-        line = f.readline().split(sep="\t")
-        eeg[i] = np.asarray([float(i) for i in line[1:-1]])
-    np.save(file_path + '_eeg', eeg)
-    return file_path + '_eeg.npy'
+
 
 
 def main(arguments):
@@ -74,10 +66,10 @@ def main(arguments):
     pattern = re.compile("\d+")
 
     if not args.modelos:
-        path = 'C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\Pruebas-paper\\*'
+        path = 'C:/Users/Ceiec01/OneDrive - UFV/PFG/Codigo/checkpoints/Pruebas-paper/*'
         model_paths = glob.glob(path)
     elif pattern.fullmatch(args.modelos):
-        path = 'C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\Pruebas-paper\\*'
+        path = 'C:/Users/Ceiec01/OneDrive - UFV/PFG/Codigo/checkpoints/Pruebas-paper/*'
         model = int(args.modelos)
         model_paths = [glob.glob(path)[model]]
     else:
@@ -89,8 +81,8 @@ def main(arguments):
 
     for model_path in model_paths:
         for file_path in file_paths:
-            model_name = model_path.split('\\')[-1]
-            file_name = file_path.split('\\')[-1]
+            model_name = model_path.split('/')[-1]
+            file_name = file_path.split('/')[-1]
             print(file_name)
             print()
             test = test_model(model_path, file_path)

@@ -9,7 +9,14 @@ from sklearn.metrics import confusion_matrix, classification_report
 
 from aux_func.confussion_matrix import plot_confusion_matrix
 from aux_func.data_preprocess import Preprocessor
+from aux_func.data_reading import prepare_file
 from aux_func.load_model import load_model
+
+import config
+
+conjuntos = {v: k for k, v in config.choices_conjunto.items()}
+patients = {v: k for k, v in config.choices_paciente.items()}
+pruebas = {v: k for k, v in config.choices_prueba.items()}
 
 
 def check_file_is_completed(inference_path):
@@ -35,12 +42,15 @@ def return_next_EEG(data, file_content):
     except ValueError:
         return 0
 
-def write_inference_all(model, inference_path, batch_size=16):
-    inference_file = f'{inference_path}\\inference.csv'
+
+def write_inference_all(model, inference_path, batch_size=16, file_name='inference.csv', dataset_path=None):
+    inference_file = f'{inference_path}/{file_name}'
 
     channels = []
-    if model.input_shape[2] == 25:
-        channels = [9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 29, 30, 31, 32, 33, 39, 40, 41, 42, 43, 49, 50, 51, 52, 53]
+    if model.input_shape[2] != 64:
+        for channels in config.channels_config:
+            if len(channels) == model.input_shape[2]:
+                break
     out_shape = list(model.input_shape[1:])
     prepro = Preprocessor(batch_size, model.input_shape[1], 64, prueba=-1, limpio=0, paciente=-1,
                           channels=channels, output_shape=out_shape,
@@ -52,8 +62,13 @@ def write_inference_all(model, inference_path, batch_size=16):
 
     read_lines, file_content = check_file_is_completed(inference_file)
     data = prepro.dataset
+    if dataset_path:
+        paths = glob.glob(dataset_path)
+        for i, path in enumerate(paths):
+            paths[i] = prepare_file(path)
+        data = (paths, [0] * len(paths))
     if read_lines == -1:
-        return file_content
+        return inference_file
     if read_lines != 0:
         line_from = return_next_EEG(data, file_content)
     else:
@@ -85,91 +100,125 @@ def write_inference_all(model, inference_path, batch_size=16):
     with open(inference_file, 'a') as out_file:
         out_file.write('END')
     with open(inference_file, 'r') as out_file:
-        return out_file.read().splitlines()[1:-1]
+        return inference_file
 
 
-def inference(model_path, conjunto, patient, prueba=1, combination='mean', mode=0, batch_size=16):
-
+def inference(model_path, conjunto, patient, prueba=1, combination='mean', mode=0, batch_size=16, classes=-1):
     model = load_model(model_path)
-    conjuntos = ['test', 'train', 'val', 'full', 'test_pre_post']
-    patients = ['control', 'pre', 'post', 'Pre-Post']
-    pruebas = {-1: "Both",
-               0: "FTD",
-               1: "FTI",
-               2: "Resting"}
-    inference_path = f'{model_path}\\inference'
+    inference_path = f'{model_path}/inference'
 
-    results = write_inference_all(model, inference_path)
-    dataframe = pd.read_csv(StringIO('\n'.join(results)), names=['EEG_file', 'Chunk', 'Zona', 'No_Parkinson', 'Parkinson'],
+    inference_file = write_inference_all(model, inference_path)
+    evaluation(inference_file, patient, conjunto, prueba=prueba, combination=combination, mode=mode,
+               batch_size=batch_size, classes=classes)
+
+
+def inference_wrapper(model_path, dataset_path, out_file):
+    model = load_model(model_path)
+    inference_path = f'{model_path}/inference'
+    write_inference_all(model, inference_path, file_name=out_file, dataset_path=dataset_path)
+
+
+def evaluation_wrapper(in_file, patient, conjunto, real_file=None, prueba=1, combination='mean', mode=0, batch_size=16,
+                       by_class=False):
+    if by_class:
+        for classes in range(3):
+            evaluation(in_file, patient, conjunto, real_file, prueba, combination, mode, batch_size, classes=classes)
+    else:
+        evaluation(in_file, patient, conjunto, real_file, prueba, combination, mode, batch_size, classes=-1)
+
+
+def evaluation(in_file, patient, conjunto, real_file=None, prueba=1, combination='mean', mode=0, batch_size=16,
+               classes=-1):
+    model_path = os.path.dirname(os.path.dirname(in_file))
+    with open(in_file, 'r') as out_file:
+        results = out_file.read().splitlines()[1:-1]
+
+    dataframe = pd.read_csv(StringIO('\n'.join(results)),
+                            names=['EEG_file', 'Chunk', 'Zona', 'No_Parkinson', 'Parkinson'],
                             sep=';')
 
-    base_path = f'{conjuntos[conjunto]}_{patients[patient]}_{pruebas[prueba]}'
-    zones = False
-    if 'Zone' in model_path:
-        base_path = f'{base_path}_{combination}'
-        zones = True
-    print(f'{base_path}')
-    try:
-        os.mkdir(f'{model_path}\\{base_path}')
-    except Exception:
-        pass
     test_post = False
     if conjunto == 4:
         test_post = True
 
-    prepro = Preprocessor(batch_size,
-                          256,
-                          64,
-                          prueba=prueba,
-                          limpio=0,
-                          paciente=patient,
-                          channels=[],
-                          transpose=True,
-                          test_post=test_post,
-                          shuffle=False)
-    if conjunto == 0 or conjunto == 4:
-        data = prepro.test_set
-    if conjunto == 1:
-        data = prepro.train_set
-    if conjunto == 2:
-        data = prepro.val_set
-    if conjunto == 3:
-        data = prepro.dataset
+    if real_file and in_file:
+        with open(real_file, 'r') as real:
+            data_y = real.read().splitlines()
+            data_y = [(x.split(";")[0][1:-1] + '_eeg.npy', int(x.split(";")[1]))for x in data_y]
+
+            data = ([x[0] for x in data_y], [x[1] for x in data_y])
+        base_path = os.path.split(real_file)[-1][:-4]
+    else:
+        base_path = f'{conjuntos[conjunto]}__{patients[patient]}__{pruebas[prueba]}'
+        if len(dataframe['Zona'].unique()) > 1:
+            base_path = f'{base_path}_{combination}'
+        print(f'{base_path}')
+        prepro = Preprocessor(batch_size,
+                              256,
+                              64,
+                              prueba=prueba,
+                              limpio=0,
+                              paciente=patient,
+                              channels=[],
+                              transpose=True,
+                              test_post=test_post,
+                              shuffle=False)
+        if conjunto == 0 or conjunto == 4:
+            data = prepro.test_set
+        if conjunto == 1:
+            data = prepro.train_set
+        if conjunto == 2:
+            data = prepro.val_set
+        if conjunto == 3:
+            data = prepro.dataset
+    try:
+        os.mkdir(f'{model_path}/{base_path}')
+    except Exception:
+        pass
+
     data_df = pd.DataFrame(zip(data[0], data[1]), columns=['key', 'truth_val'])
 
     dataframe = dataframe.merge(data_df, how='left', left_on='EEG_file', right_on='key')
+    if classes == 0:
+        dataframe = dataframe[dataframe['EEG_file'].str.contains(r'controles')]
+    if classes == 1:
+        dataframe = dataframe[dataframe['EEG_file'].str.contains(r'_Pre_')]
+    if classes == 2:
+        dataframe = dataframe[dataframe['EEG_file'].str.contains(r'_Post_')]
 
     if mode != 2:
 
         print("Full EEGs")
         try:
-            os.mkdir(f'{model_path}\\{base_path}\\full_eeg')
+            os.mkdir(f'{model_path}/{base_path}/full_eeg')
         except Exception:
             pass
-        full_eeg = dataframe[['EEG_file', 'Zona', 'No_Parkinson', 'Parkinson', 'truth_val']].groupby(['EEG_file', 'Zona'], as_index=False).mean()
+        full_eeg = dataframe[['EEG_file', 'Zona', 'No_Parkinson', 'Parkinson', 'truth_val']].groupby(
+            ['EEG_file', 'Zona'], as_index=False).mean()
 
         for zone in full_eeg['Zona'].unique():
             y_pred = full_eeg[['No_Parkinson', 'Parkinson']].loc[full_eeg['EEG_file'].isin(data[0])].values
             y_real = full_eeg['truth_val'].loc[(full_eeg['EEG_file'].isin(data[0])) & (full_eeg['Zona'] == zone)].values
             y_pred = np.argmax(np.asarray(y_pred), axis=1)
             if zone == -1:
-                path = f'{model_path}\\{base_path}/full_eeg'
+                path = f'{model_path}/{base_path}/full_eeg'
             else:
-                path = f'{model_path}\\{base_path}/full_eeg/Zone_{zone+1}'
+                path = f'{model_path}/{base_path}/full_eeg/Zone_{zone + 1}'
             cf_matrix = confusion_matrix(y_real, y_pred)
-            with open(f'{path}/classification_report.txt', 'w') as f:
-                print(classification_report(y_real, y_pred, labels=[0, 1], target_names=["No Parkinson", "Parkinson"]), file=f)
+            with open(f'{path}/classification_report{classes if classes != -1 else ""}.txt', 'w') as f:
+                print(classification_report(y_real, y_pred, labels=[0, 1], target_names=["No Parkinson", "Parkinson"]),
+                      file=f)
             print(cf_matrix)
 
             plot_confusion_matrix(cm=cf_matrix,
                                   normalize=False,
                                   target_names=["No Parkinson", "Parkinson"],
                                   title="Matriz de confusión",
-                                  save=f'{path}\\test_eeg.png')
+                                  save=f'{path}/test_eeg{classes if classes != -1 else ""}.png')
     if mode != 1:
 
         try:
-            os.mkdir(f'{model_path}\\{base_path}\\chunks')
+            os.mkdir(f'{model_path}/{base_path}/chunks')
         except Exception:
             pass
         full_eeg = dataframe
@@ -179,11 +228,11 @@ def inference(model_path, conjunto, patient, prueba=1, combination='mean', mode=
             y_real = full_eeg['truth_val'].loc[(full_eeg['EEG_file'].isin(data[0])) & (full_eeg['Zona'] == zone)].values
             y_pred = np.argmax(np.asarray(y_pred), axis=1)
             if zone == -1:
-                path = f'{model_path}\\{base_path}/chunks'
+                path = f'{model_path}/{base_path}/chunks'
             else:
-                path = f'{model_path}\\{base_path}/chunks/Zone_{zone + 1}'
+                path = f'{model_path}/{base_path}/chunks/Zone_{zone + 1}'
             cf_matrix = confusion_matrix(y_real, y_pred)
-            with open(f'{path}/classification_report.txt', 'w') as f:
+            with open(f'{path}/classification_report{classes if classes != -1 else ""}.txt', 'w') as f:
                 print(classification_report(y_real, y_pred, labels=[0, 1], target_names=["No Parkinson", "Parkinson"]),
                       file=f)
             print(cf_matrix)
@@ -192,7 +241,7 @@ def inference(model_path, conjunto, patient, prueba=1, combination='mean', mode=
                                   normalize=False,
                                   target_names=["No Parkinson", "Parkinson"],
                                   title="Matriz de confusión",
-                                  save=f'{path}\\test_eeg.png')
+                                  save=f'{path}/test_eeg{classes if classes != -1 else ""}.png')
 
 
 def main(arguments):
@@ -217,6 +266,8 @@ def main(arguments):
     parser.add_argument('--patient',
                         help='Que tipo de pacientes se van a usar en el conjunto de inferencia. '
                              '[Pre-post, controles, pre, post]', type=int, default=1, choices=[-1, 0, 1, 2])
+    parser.add_argument('--by_class',
+                        help='Si se va a realizar la prueba para cada una de las clases', action='store_true')
     args = parser.parse_args(arguments)
 
     paths = glob.glob(args.path)
@@ -229,8 +280,11 @@ def main(arguments):
         prueba = 1
     if model_path.find('FTD') != -1:
         prueba = 0
-
-    inference(model_path, args.conjunto, args.patient, prueba, args.combination, args.mode)
+    if args.by_class:
+        for classes in range(3):
+            inference(model_path, args.conjunto, args.patient, prueba, args.combination, args.mode, classes=classes)
+    else:
+        inference(model_path, args.conjunto, args.patient, prueba, args.combination, args.mode)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 from .data_reading import generate_dataset, load_and_slice
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
+import config
 
 
 class Preprocessor:
@@ -62,17 +63,9 @@ class Preprocessor:
             #     self.CHANNELS * self.WINDOW_WIDTH]
             self.output_shape = output_shape
 
-        pruebas = {-1: "*",
-                   0: "FTD",
-                   1: "FTI",
-                   2: "Resting"}
-        limpios = {-1: "*",
-                   0: "EEGs_brutos",
-                   1: "EEGs_limpieza_CSIC"}
-        pacient = {-1: "*",
-                   0: "control",
-                   1: "pat_pre",
-                   2: "pat_post"}
+        pruebas = {v: k for k, v in config.choices_prueba.items()}
+        limpios = {v: k for k, v in config.choices_limpio.items()}
+        pacient = {v: k for k, v in config.choices_paciente.items()}
 
         # Cargamos el dataset. Esto devuelve un diccionario que podemos emplear para seleccionar qué tipos de datos
         # queremos usar. Quitamos las opciones de que cojan datasets mixtos.

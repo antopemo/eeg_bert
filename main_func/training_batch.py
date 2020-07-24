@@ -19,8 +19,7 @@ Tiene dos parámetros:
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import json
-import os
+import json as json_app
 
 from BERT.models import Bert_25_channels, Bert_64_channels, Bert_Zones
 from BertTraining_Zones import Zone_Trainer
@@ -31,6 +30,7 @@ from tensorflow import keras
 import datetime
 
 # print(tf.version)
+from config import bert_configs
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -46,37 +46,29 @@ import argparse
 import datetime
 import os
 import sys
+import config
 
-modelos = {
-    0: '64_channels',
-    1: '25_channels',
-    2: 'Zones'
-}
+modelos = {v: k for k, v in config.choices_modelo.items()}
 
-datos_entrenamiento = {
-    0: 'FTI',
-    1: 'FTD',
-    2: 'Both'
-}
+datos_entrenamiento = {v: k for k, v in config.choices_prueba.items()}
 
-pacientes = {
-    -1:'pre-post',
-    0:'control',
-    1:'pre',
-    2:'post'
-}
+pacientes = {v: k for k, v in config.choices_paciente.items()}
 
-total_epoch_count = 5
+epochs = 5
 learning_rate = 2e-5
 optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 train_loss = keras.losses.SparseCategoricalCrossentropy(from_logits=True, name='loss')
 train_accuracy = keras.metrics.SparseCategoricalAccuracy(name="SparseCatAc")
 
 
-def train_model(modelo, datos, batch_size=16, window_width=256, window_steps=1, patient=1):
+def train_model(modelo, datos, total_epoch_count=epochs, batch_size=16, window_width=256, window_steps=1, patient=1, nopad=False, json=None,
+                name=None):
+    if not json:
+        json = bert_configs[modelo][0]
+
+    model_name = name if name else f'{modelos[modelo]}_{"nopad"if nopad else "pad"}_{datos_entrenamiento[datos]}_{pacientes[patient]}_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}'
     model_path = os.path.normpath(
-        f'./checkpoints/{modelos[modelo]}_{datos_entrenamiento[datos]}_{pacientes[patient]}_'
-        f'{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}')
+        f'./checkpoints/{model_name}')
 
     out_shape = [window_width, 64]
     prueba = -1 if datos == 2 else datos
@@ -85,10 +77,17 @@ def train_model(modelo, datos, batch_size=16, window_width=256, window_steps=1, 
         Zone_Trainer(batch_size, window_width, window_steps, channels, out_shape, prueba, patient) \
             .train_individually(total_epoch_count, optimizer, train_loss, train_accuracy)
     else:
-        channels = [9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 29, 30, 31, 32, 33, 39, 40, 41, 42, 43, 49, 50, 51, 52,
-                    53] if modelo == 1 else []
+        if not nopad or modelo == 0:
+            channels = [9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 29, 30, 31, 32, 33, 39, 40, 41, 42, 43, 49, 50, 51, 52,
+                        53] if modelo == 1 else []
 
-        model = Bert_64_channels.create_model(tuple(out_shape), adapter_size=None)
+            model = Bert_64_channels.create_model(tuple(out_shape), adapter_size=None, json=json)
+        else:
+            channels = bert_configs[modelo][1]
+            out_shape = [window_width, len(channels)]
+
+            model = Bert_64_channels.create_model(tuple(out_shape), adapter_size=None, json=json)
+
         dataset, train_dataset, test_dataset, val_dataset = Preprocessor(batch_size,
                                                                          window_width,
                                                                          window_steps,
@@ -99,26 +98,25 @@ def train_model(modelo, datos, batch_size=16, window_width=256, window_steps=1, 
                                                                          transpose=True,
                                                                          output_shape=out_shape
                                                                          ).classification_tensorflow_dataset()
-
         model.compile(optimizer=optimizer,
                       loss=train_loss,
                       metrics=[train_accuracy, 'acc'])
 
         os.mkdir(model_path)
-        os.mkdir(model_path + '\\training_weights')
+        os.mkdir(model_path + '/training_weights')
 
-        checkpoint_path = os.path.join(model_path, "training_weights\\weights.{epoch:02d}-{val_loss:.2f}.hdf5")
+        checkpoint_path = os.path.join(model_path, "training_weights/weights.{epoch:02d}.hdf5")
         checkpoint_dir = os.path.dirname(checkpoint_path)
 
-        with open(model_path + '\\model_architecture.json', 'w') as f:
-            json.dump(model.to_json(), f)
+        with open(model_path + '/model_architecture.json', 'w') as f:
+            json_app.dump(model.to_json(), f)
 
         # Create a callback that saves the model's weights
         cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                          save_freq='epoch',
                                                          verbose=1)
 
-        log_dir = ".log\\eegs\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        log_dir = os.path.normpath(f".log/eegs/{model_name}")
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir,
                                                            histogram_freq=1,
                                                            write_graph=True,

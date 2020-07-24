@@ -84,13 +84,13 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
                           shuffle=False)
 
     try:
-        os.mkdir(f'{model_path}\\{base_path}')
+        os.mkdir(f'{model_path}/{base_path}')
     except Exception:
         pass
 
     if mode != 2:
         try:
-            os.mkdir(f'{model_path}\\{base_path}\\full_eeg')
+            os.mkdir(f'{model_path}/{base_path}/full_eeg')
         except Exception:
             pass
         if conjunto == 0 or conjunto == 4:
@@ -111,8 +111,8 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
                 for i, zone in enumerate(np.swapaxes(zone_pred, 0, 1)):
                     y_pred_zones[i].append(np.argmax(np.asarray(np.mean(zone, axis=0))))
                     try:
-                        os.mkdir(f'{model_path}\\{base_path}\\chunks\\zones')
-                        os.mkdir(f'{model_path}\\{base_path}\\full_eeg\\zones')
+                        os.mkdir(f'{model_path}/{base_path}/chunks/zones')
+                        os.mkdir(f'{model_path}/{base_path}/full_eeg/zones')
                     except Exception:
                         pass
                 if combination == 'majority_voting':
@@ -128,7 +128,7 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
 
         cf_matrix = confusion_matrix(data[1], y_pred)
 
-        with open(f'{model_path}\\{base_path}/full_eeg/classification_report.txt',
+        with open(f'{model_path}/{base_path}/full_eeg/classification_report.txt',
                   'w') as f:
             print(classification_report(data[1], y_pred, labels=[0, 1], target_names=["No Parkinson", "Parkinson"]), file=f)
         print(cf_matrix)
@@ -137,7 +137,7 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
                               normalize=False,
                               target_names=["No Parkinson", "Parkinson"],
                               title="Matriz de confusión",
-                              save=f'{model_path}\\{base_path}\\full_eeg\\test_eeg.png')
+                              save=f'{model_path}/{base_path}/full_eeg/test_eeg.png')
 
         if y_pred_zones[0]:
             for i, y_pred in enumerate(y_pred_zones):
@@ -147,14 +147,14 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
                                       normalize=False,
                                       target_names=["No Parkinson", "Parkinson"],
                                       title="Matriz de confusión",
-                                      save=f'{model_path}\\{base_path}\\full_eeg\\zones\\test_confussion_zone_{i + 1}_matrix.png')
+                                      save=f'{model_path}/{base_path}/full_eeg/zones/test_confussion_zone_{i + 1}_matrix.png')
 
     # CHUNKS NOW
 
     if mode != 1:
 
         try:
-            os.mkdir(f'{model_path}\\{base_path}\\chunks')
+            os.mkdir(f'{model_path}/{base_path}/chunks')
         except Exception:
             pass
         full, train, test, val = prepro.classification_generator_dataset()
@@ -185,7 +185,7 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
 
         cf_matrix = confusion_matrix(y_data, y_pred)
 
-        with open(f'{model_path}\\{base_path}\\chunks/classification_report.txt',
+        with open(f'{model_path}/{base_path}/chunks/classification_report.txt',
                   'w') as f:
             print(classification_report(y_data, y_pred, labels=[0, 1], target_names=["No Parkinson", "Parkinson"]), file=f)
         print(cf_matrix)
@@ -194,7 +194,7 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
                               normalize=False,
                               target_names=["No Parkinson", "Parkinson"],
                               title="Matriz de confusión",
-                              save=f'{model_path}\\{base_path}\\chunks\\test_eeg.png')
+                              save=f'{model_path}/{base_path}/chunks/test_eeg.png')
         if y_pred_zones != []:
             for i, y_pred in enumerate(y_pred_zones):
                 cf_matrix = confusion_matrix(y_data, y_pred)
@@ -203,13 +203,13 @@ def test_model(model_path, conjunto, patient, prueba=1, combination='mean', mode
                                       normalize=False,
                                       target_names=["No Parkinson", "Parkinson"],
                                       title="Matriz de confusión",
-                                      save=f'{model_path}\\{base_path}\\chunks\\zones\\test_confussion_zone_{i + 1}_matrix.png')
+                                      save=f'{model_path}/{base_path}/chunks/zones/test_confussion_zone_{i + 1}_matrix.png')
 
 
 if __name__ == "__main__":
-    model_paths = [#"C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-ControlesPre-CanalesReducidos",
-                   #"C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-HigherDropout-64",
-                   "C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\BERT-Zones-Final"
+    model_paths = [#"C:/Users/Ceiec01/OneDrive - UFV/PFG/Codigo/checkpoints/BERT-ControlesPre-CanalesReducidos",
+                   #"C:/Users/Ceiec01/OneDrive - UFV/PFG/Codigo/checkpoints/BERT-HigherDropout-64",
+                   "C:/Users/Ceiec01/OneDrive - UFV/PFG/Codigo/checkpoints/BERT-Zones-Final"
                    ]
     for model_path in model_paths:
         for conjunto in range(3):

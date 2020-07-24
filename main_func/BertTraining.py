@@ -62,12 +62,12 @@ if __name__ == "__main__":
     model_path = os.path.normpath(
         "./checkpoints/BERT-HigherDropout-64-16-cabezas" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
     os.mkdir(model_path)
-    os.mkdir(model_path + '\\training_weights')
+    os.mkdir(model_path + '/training_weights')
 
-    checkpoint_path = os.path.join(model_path, "training_weights\\weights.{epoch:02d}-{val_loss:.2f}.hdf5")
+    checkpoint_path = os.path.join(model_path, "training_weights/weights.{epoch:02d}-{val_loss:.2f}.hdf5")
     checkpoint_dir = os.path.dirname(checkpoint_path)
 
-    with open(model_path + '\\model_architecture.json', 'w') as f:
+    with open(model_path + '/model_architecture.json', 'w') as f:
         json.dump(model.to_json(), f)
 
     # Create a callback that saves the model's weights
@@ -75,7 +75,7 @@ if __name__ == "__main__":
                                                      save_freq='epoch',
                                                      verbose=1)
 
-    log_dir = ".log\\eegs\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir = ".log/eegs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_dir,
                                                        histogram_freq=1,
                                                        write_graph=True,

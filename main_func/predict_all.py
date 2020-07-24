@@ -40,7 +40,7 @@ def main(arguments):
                              '[Pre-post, controles, pre, post]', type=int, default=1, choices=[-1, 0, 1, 2])
     args = parser.parse_args(arguments)
     if not args.path:
-        path = 'C:\\Users\\Ceiec01\\OneDrive - UFV\\PFG\\Codigo\\checkpoints\\Pruebas-paper\\*'
+        path = 'C:/Users/Ceiec01/OneDrive - UFV/PFG/Codigo/checkpoints/Pruebas-paper/*'
     else:
         path = args.path
 

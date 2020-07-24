@@ -5,29 +5,25 @@ import numpy as np
 from aux_func.confussion_matrix import plot_confusion_matrix
 from sklearn.metrics import confusion_matrix, classification_report
 from aux_func.load_model import load_model
+from config import bert_config_64
+import json as json_app
 
-bert_config = f'{{ \
-    "attention_probs_dropout_prob": 0.3, \
-    "hidden_act": "gelu", \
-    "hidden_dropout_prob": 0.3, \
-    "hidden_size": 64,\
-    "initializer_range": 0.02,\
-    "intermediate_size": 1536,\
-    "max_position_embeddings": 5120,\
-    "num_attention_heads": 16,\
-    "num_hidden_layers": 6,\
-    "type_vocab_size": 2,\
-    "vocab_size": 30522\
-    }}'
-
-
-def create_model(input_shape, adapter_size=64):
+def create_model(input_shape, adapter_size=64, json=None):
     """Creates a classification model."""
 
     # adapter_size = 64  # see - arXiv:1902.00751
 
     # create the bert layer
-    bc = StockBertConfig.from_json_string(bert_config)
+
+    if json:
+        try:
+            json_app.loads(json)
+            bc = StockBertConfig.from_json_string(json)
+        except ValueError:
+            bc = StockBertConfig.from_json_file(json)
+    else:
+        bc = StockBertConfig.from_json_string(bert_config_64)
+
     bert_params = map_stock_config_to_params(bc)
     bert_params.adapter_size = adapter_size
     bert = BertModelLayer.from_params(bert_params, name="bert")
@@ -73,4 +69,4 @@ def test_model(model_path, prepro, model=None):
                           normalize=False,
                           target_names=["No Parkinson", "Parkinson"],
                           title="Matriz de confusión",
-                          save=model_path + f'\\test_eeg_postlevo.png')
+                          save=model_path + f'/test_eeg_postlevo.png')

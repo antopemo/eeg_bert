@@ -3,42 +3,46 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import glob
 import os
 import random
-import sys
 from tqdm.auto import tqdm
-import easygui
 import numpy as np
 
 # Directorio base donde se encuentra el dataset
-base_path = "C:\\Users\\Ceiec01\\OneDrive - UFV\\datasets\\EEGs_Pre_Post_LD"
-version = "v2.0.0"
+import config
+
+base_path = config.dataset_base_path
+version = config.dataset_version
 
 random.seed(42)
 
-pruebas = {-1: "*",
+pruebas = {v: k for k, v in config.choices_prueba.items()}
+limpios = {v: k for k, v in config.choices_limpio.items()}
+
+pruebas_regex = {-1: "*",
            0: "FTD",
            1: "FTI",
            2: "Resting"}
-limpios = {-1: "*",
+limpios_regex = {-1: "*",
            0: "EEGs_brutos",
            1: "EEGs_limpieza_CSIC"}
 
 
-def refactor_data():
+def refactor_data(path=None):
     """
     Function that collect all eeg binary files, extracts data and timestamps info
     and saves them to npy files in the same folder so that importing later is easier
     :return: Nothing
     """
     print("Building dataset from scratch...")
-    path = os.path.join(base_path, version)
+    if not path:
+        path = os.path.join(base_path, version)
     # Semilla para reproducibilidad
     random.seed(42)
 
     control_path = os.path.join(path, 'controles')
     no_control_path = os.path.join(path, 'pacientes')
 
-    control_files = glob.glob(control_path + '\\*\\*[!y]', recursive=True)
-    no_control_files = glob.glob(no_control_path + '\\*\\*[!y]', recursive=True)
+    control_files = glob.glob(control_path + '/*/*[!y]', recursive=True)
+    no_control_files = glob.glob(no_control_path + '/*/*[!y]', recursive=True)
 
     for file in tqdm(control_files + no_control_files):
         print(file)
@@ -52,46 +56,7 @@ def refactor_data():
         np.save(file + '_eeg', eeg)
 
 
-def gui_temp(gui=False):
-    """
-    Placeholder function for a gui guided importing of files
-    :param gui: Bool to show gui or not
-    :return: Nothing
-    """
-    if gui:
-        from_file = easygui.ynbox(msg='Cargar el dataset de nuevo?', title=' ',
-                                  default_choice='[<F2>]No', cancel_choice='[<F2>]No')
-        path = easygui.diropenbox(msg="Seleccione raiz del dataset", title="Seleccione raiz del dataset")
-
-        limpio = easygui.indexbox(msg='Seleccione limpios o brutos',
-                                  choices=([limpios[i] for i in limpios]),
-                                  cancel_choice=limpios[0])
-        prueba = easygui.indexbox(msg='Seleccione la prueba a cargar',
-                                  choices=([pruebas[i] for i in pruebas]),
-                                  cancel_choice=pruebas[0])
-    else:
-        from_file = True
-        path = os.path.join(base_path, version)
-        if not path:
-            sys.exit(0)  # exit the program+
-        limpio = -1
-        prueba = -1
-
-    control_path = os.path.join(path, 'controles')
-    no_control_path = os.path.join(path, 'pacientes')
-
-    # Cogemos los ficheros tanto de control como de no control
-    try:
-        control_files = glob.glob(control_path + '\\' + limpios[limpio] + '\\*_' + pruebas[prueba] + '[!y]',
-                                  recursive=True)
-        no_control_files = glob.glob(no_control_path + '\\' + limpios[limpio] + '\\*_' + pruebas[prueba] + '[!y]',
-                                     recursive=True)
-    except KeyError:
-        control_files = glob.glob(control_path + '\\*\\*_*[!y]', recursive=True)
-        no_control_files = glob.glob(no_control_path + '\\*\\*_*[!y]', recursive=True)
-
-
-def load_data(limpio=-1, prueba=-1):
+def load_data(limpio=-1, prueba=-1, path=None):
     """
     Function that gets all file's path for eeg
     :param limpio: select clean eeg (1), raw (0) or both (-1)
@@ -102,18 +67,18 @@ def load_data(limpio=-1, prueba=-1):
         limpio = -1
     if prueba not in pruebas.keys():
         prueba = -1
-
-    path = os.path.join(base_path, version)
+    if not path:
+        path = os.path.join(base_path, version)
 
     control_path = os.path.join(path, 'controles')
     no_control_path = os.path.join(path, 'pacientes')
-    control_files = glob.glob(control_path + '\\' + limpios[limpio] + '\\*_' + pruebas[prueba] + '_eeg.npy',
+    control_files = glob.glob(control_path + '/' + limpios_regex[limpio] + '/*_' + pruebas_regex[prueba] + '_eeg.npy',
                               recursive=True)
     no_control_files_pre = glob.glob(
-        no_control_path + '\\' + limpios[limpio] + '\\*Pre_' + pruebas[prueba] + '_eeg.npy',
+        no_control_path + '/' + limpios_regex[limpio] + '/*Pre_' + pruebas_regex[prueba] + '_eeg.npy',
         recursive=True)
     no_control_files_post = glob.glob(
-        no_control_path + '\\' + limpios[limpio] + '\\*Post_' + pruebas[prueba] + '_eeg.npy',
+        no_control_path + '/' + limpios_regex[limpio] + '/*Post_' + pruebas_regex[prueba] + '_eeg.npy',
         recursive=True)
 
     control_array = []
@@ -159,7 +124,7 @@ def generate_dataset(exclude=None):
             if prueba in exclude[1]:
                 continue
             control, pat_pre, pat_post = load_data(limpio, prueba)
-            patiente_dict = {"control": control, "pat_pre": pat_pre, "pat_post": pat_post}
+            patiente_dict = {"control": control, "pre": pat_pre, "post": pat_post}
             prueba_dict[pruebas[prueba]] = patiente_dict
         temp_dataset[limpios[limpio]] = prueba_dict
 
@@ -196,8 +161,9 @@ def load_and_slice(array_path, tag, step=16, width=64, output_shape=None, transp
             if output_shape is not None:
                 # print(element.shape)
                 shape_a, shape_b = 1, 1
-                for a, b in zip(output_shape, element.shape):
+                for a in output_shape:
                     shape_a *= a
+                for b in element.shape:
                     shape_b *= b
                 if shape_a == shape_b:
                     element = element.reshape(output_shape)

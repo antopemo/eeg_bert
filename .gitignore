@@ -9,3 +9,4 @@ transformers
 __old/*
 testeo/*
 *.csv
+/test_pre_post_all/

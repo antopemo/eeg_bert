@@ -19,11 +19,11 @@ def main(arguments):
         csv_out.write("MODELO;Accuracy;;;;Precission;;;;Recall;;;;F1 Score;;;\n"
                       ";Train;Val;Test;POST;Train;Val;Test;POST;Train;Val;Test;POST;Train;Val;Test;POST\n")
         for model in models:
-            model_name = model.split('\\')[-1]
+            model_name = model.split('/')[-1]
             accuracy, precission, recall, f1score = [], [], [], []
             for folder in folders:
-                print(os.path.normpath(f'{model}\\{folder}*\\full_eeg\\*.txt'))
-                file = glob.glob(os.path.normpath(f'{model}\\{folder}*\\full_eeg\\*.txt'))
+                print(os.path.normpath(f'{model}/{folder}*/full_eeg/*.txt'))
+                file = glob.glob(os.path.normpath(f'{model}/{folder}*/full_eeg/*.txt'))
                 print(file)
                 with open(file[0]) as class_report:
                     string = [i.split() for i in class_report.readlines()]
